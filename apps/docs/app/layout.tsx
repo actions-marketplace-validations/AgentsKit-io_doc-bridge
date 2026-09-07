@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import Script from 'next/script'
-import { RootProvider } from 'fumadocs-ui/provider'
+import { RootProvider } from 'fumadocs-ui/provider/next'
 import './globals.css'
 import { ChatLauncher } from '@/components/chat-launcher'
 import { SITE_URL } from '@/lib/site'
 import { serializedDocBridgeStructuredData } from '@/lib/structured-data'
+import { AccessibleSearch } from '@/components/accessible-search'
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -38,7 +39,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? ''
 
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <script
           type="application/ld+json"
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <Script src="https://www.agentskit.io/ecosystem-bar.js" strategy="afterInteractive" data-current="doc-bridge" />
         <RootProvider search={{ enabled: true, options: { type: 'static', api: `${basePath}/api/search/` } }}>
+          <AccessibleSearch />
           {children}
           <ChatLauncher />
         </RootProvider>

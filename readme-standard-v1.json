@@ -138,7 +138,7 @@
           "docs/landing/assets/doc-bridge-hero.webp"
         ],
         "maturity": [
-          "v1.4.0 stable"
+          "v1.7.45 stable"
         ],
         "compatibility": [
           "node >=22",
@@ -200,7 +200,7 @@
           "examples/verify-handoff.mjs",
           "package.json"
         ],
-        "sourceHash": "sha256:062b58611a15430ff53d746754509f3c029c788fa284ad098b8b9fe862f9b1de"
+        "sourceHash": "sha256:9c44a91555700f0b5a471d12952ff3716cbf974d8e3d8716c2c219a85fe93d8c"
       },
       "exceptions": []
     },
@@ -222,7 +222,7 @@
           "doc-bridge-two-way.webp"
         ],
         "maturity": [
-          "v1.4.0 stable"
+          "v1.7.45 stable"
         ],
         "compatibility": [
           "node >=22"
@@ -279,7 +279,7 @@
           "examples/verify-handoff.mjs",
           "package.json"
         ],
-        "sourceHash": "sha256:062b58611a15430ff53d746754509f3c029c788fa284ad098b8b9fe862f9b1de"
+        "sourceHash": "sha256:9c44a91555700f0b5a471d12952ff3716cbf974d8e3d8716c2c219a85fe93d8c"
       },
       "exceptions": []
     },
@@ -301,7 +301,7 @@
           "doc-bridge-surfaces.webp"
         ],
         "maturity": [
-          "v1.4.0 stable"
+          "v1.7.45 stable"
         ],
         "compatibility": [
           "node >=22"
@@ -358,7 +358,7 @@
           "examples/verify-handoff.mjs",
           "package.json"
         ],
-        "sourceHash": "sha256:062b58611a15430ff53d746754509f3c029c788fa284ad098b8b9fe862f9b1de"
+        "sourceHash": "sha256:9c44a91555700f0b5a471d12952ff3716cbf974d8e3d8716c2c219a85fe93d8c"
       },
       "exceptions": []
     }

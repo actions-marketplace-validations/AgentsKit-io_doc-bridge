@@ -28,17 +28,35 @@ pnpm build
 - Update docs and `CHANGELOG.md` when behavior changes.
 - Keep examples public and reproducible.
 
+## Why contribute?
+
+Doc Bridge helps humans and coding agents navigate large repositories with less context and stronger evidence. The study is intentionally open and anonymized so contributors can improve the measurement surface as well as the product.
+
+High-impact contribution areas:
+
+- language and framework analyzers;
+- documentation quality rules and contradiction detectors;
+- architecture relation extraction;
+- CLI, MCP, and documentation adapters;
+- executable acceptance checks;
+- anonymized benchmark tasks and replications;
+- accessibility and report improvements.
+
+Start with the [study overview](docs/study/README.md), run the chart check, and use the smallest reproducible example for a proposed change.
+
 ## Releases
 
-Use Changesets for versioned changes:
+Use Changesets for versioned changes. A merged changeset on `master` starts the
+version workflow, which opens a version PR and publishes the merged version
+through npm Trusted Publishing (GitHub OIDC). No npm token is stored in GitHub.
 
 ```bash
 pnpm changeset
-pnpm version-packages
-pnpm release
 ```
 
-Do not publish from a dirty worktree.
+The npm package must have a GitHub Actions trusted publisher configured for
+`AgentsKit-io/doc-bridge`, workflow `changesets.yml`, and environment `npm`.
+Do not publish from a dirty worktree or run `pnpm release` locally.
 
 Project decisions and maintainer responsibilities are documented in
 [GOVERNANCE.md](GOVERNANCE.md). By participating, you agree to follow the

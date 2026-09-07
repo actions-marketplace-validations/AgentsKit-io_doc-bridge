@@ -44,6 +44,8 @@ export const IndexConfigSchema = z
         enabled: z.boolean().optional(),
         outFile: z.string().min(1).max(512).optional(),
         preamble: z.string().max(4_000).optional(),
+        urlPrefix: z.string().url().optional(),
+        pathPrefix: z.string().min(1).max(512).optional(),
       })
       .strict()
       .optional(),
@@ -150,6 +152,127 @@ export const GatesConfigSchema = z
   })
   .strict()
 
+export const RuleIdSchema = z.enum([
+  'documentation-quality',
+  'graph-undocumented-relation',
+  'declared-unobserved-relation',
+  'unresolved-reference',
+  'conflicting-declaration',
+  'not-analyzed-coverage',
+  'stale-documentation',
+  'centrality-risk',
+  'critical-path-risk',
+  'freshness',
+  'ownership',
+])
+
+export const RuleSeveritySchema = z.enum(['off', 'info', 'warn', 'error'])
+
+export const RulesConfigSchema = z
+  .object({
+    mode: z.enum(['default', 'recommended', 'strict']).optional(),
+    severity: z.partialRecord(RuleIdSchema, RuleSeveritySchema).optional(),
+    ignore: z.array(RuleIdSchema).max(128).optional(),
+    criticalEntities: z.array(z.string().min(1).max(256)).max(128).optional(),
+    criticalPaths: z.array(z.string().min(1).max(512)).max(128).optional(),
+    warningThresholds: z.partialRecord(RuleIdSchema, z.number().int().min(1).max(100_000)).optional(),
+  })
+  .strict()
+
+export const ReconciliationConfigSchema = z
+  .object({
+    /** Semantic comparison level. Raw discovery always keeps file-level relations. */
+    scope: z.enum(['file', 'module', 'package']).optional(),
+    /** Relation kinds that must have documentation declarations. Omit to require all observed kinds; [] disables this signal. */
+    requiredRelationKinds: z.array(z.string().min(1).max(128)).max(128).optional(),
+    /** Limit missing-declaration findings to relations whose endpoints are internal project entities. */
+    requiredRelationTargets: z.enum(['all', 'internal']).optional(),
+    includeOrphanedDocuments: z.boolean().optional(),
+  })
+  .strict()
+
+export const DocumentationAuditConfigSchema = z
+  .object({
+    /** Glob-like paths that should be compared for structure coverage. */
+    criticalPaths: z.array(z.string().min(1).max(512)).max(128).optional(),
+    /** Generated docs are checked for presence/freshness evidence only; content quality is skipped. */
+    generatedPaths: z.array(z.string().min(1).max(512)).max(128).optional(),
+    exclude: z.array(z.string().min(1).max(512)).max(128).optional(),
+    minWords: z.number().int().nonnegative().max(100_000).optional(),
+    requiredSections: z.array(z.string().min(1).max(128)).max(32).optional(),
+    requireExamples: z.boolean().optional(),
+    exactDuplicates: z.boolean().optional(),
+    defaultTier: z.enum(['tier-0', 'tier-1', 'tier-2']).optional(),
+    tierRules: z.array(z.object({
+      pattern: z.string().min(1).max(512),
+      tier: z.enum(['tier-0', 'tier-1', 'tier-2']),
+      critical: z.boolean().optional(),
+    }).strict()).max(128).optional(),
+    requiredCriticalMetadata: z.array(z.enum(['owner', 'lifecycle', 'sourceOfTruth', 'validationPath'])).max(4).optional(),
+  })
+  .strict()
+
+export const AnalysisConfigSchema = z
+  .object({
+    plugins: z
+      .array(
+        z
+          .object({
+            id: z.string().regex(/^[a-z][a-z0-9-]*$/).max(128),
+            enabled: z.boolean().optional(),
+            order: z.number().int().nonnegative().optional(),
+            options: z.record(z.string(), z.unknown()).optional(),
+            reason: z.string().min(1).max(1_024).optional(),
+          })
+          .strict(),
+      )
+      .max(128)
+      .optional(),
+    jsTs: z
+      .object({
+        runtimeWiringMethods: z.array(z.string().regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/).max(64)).max(64).optional(),
+        runtimeWiringAdapters: z
+          .array(
+            z
+              .object({
+                id: z.string().min(1).max(128),
+                methods: z.array(z.string().regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/).max(64)).min(1).max(64),
+              })
+              .strict(),
+          )
+          .max(32)
+          .optional(),
+        includeTestRuntimeWiring: z.boolean().optional(),
+      })
+      .strict()
+      .optional(),
+  })
+  .strict()
+
+export const WorkflowConfigSchema = z
+  .object({
+    stateDir: z.string().min(1).max(512).optional(),
+  })
+  .strict()
+
+export const RepositorySafetyConfigSchema = z
+  .object({
+    exclude: z.array(z.string().min(1).max(512)).max(128).optional(),
+    maxFiles: z.number().int().positive().max(1_000_000).optional(),
+    maxBytes: z.number().int().positive().max(10_000_000_000).optional(),
+    maxTimeMs: z.number().int().positive().max(86_400_000).optional(),
+    maxMemoryMb: z.number().int().positive().max(1_048_576).optional(),
+    redactSecrets: z.boolean().optional(),
+  })
+  .strict()
+
+export const ReportConfigSchema = z
+  .object({
+    /** Public report privacy mode. Private is the default; anonymized preserves topology without project identity. */
+    privacy: z.enum(['private', 'anonymized']).optional(),
+  })
+  .strict()
+
 export const SurfacesConfigSchema = z
   .object({
     cli: z
@@ -174,6 +297,12 @@ export const SurfacesConfigSchema = z
               'memory.classify',
               'memory.promoteDraft',
               'registry.topology',
+              'docbridge.snapshot',
+              'docbridge.report',
+              'docbridge.diagnostics',
+              'docbridge.relations',
+              'docbridge.run',
+              'docbridge.proposals',
             ]),
           )
           .max(16)
@@ -245,6 +374,29 @@ export const IntelligenceConfigSchema = z
       .optional(),
     runtime: z.enum(['agentskit', 'custom']).optional(),
     runtimeModule: z.string().min(1).max(512).optional(),
+    registry: z
+      .object({
+        enabled: z.boolean().optional(),
+        agentId: z.string().min(1).max(256).optional(),
+        agentRoot: z.string().min(1).max(512).optional(),
+        runnerModule: z.string().min(1).max(512).optional(),
+        cli: z
+          .object({
+            /** Executable name or absolute path. Arguments are passed without a shell. */
+            command: z.string().min(1).max(512),
+            args: z.array(z.string().max(2_048)).max(64).optional(),
+          })
+          .strict()
+          .optional(),
+        deterministic: z.boolean().optional(),
+        timeoutMs: z.number().int().positive().max(600_000).optional(),
+        maxInputBytes: z.number().int().positive().max(50_000_000).optional(),
+        maxTokens: z.number().int().positive().max(1_000_000).optional(),
+        maxResponseBytes: z.number().int().positive().max(10_000_000).optional(),
+        maxConcurrency: z.number().int().positive().max(64).optional(),
+      })
+      .strict()
+      .optional(),
   })
   .strict()
 
@@ -373,6 +525,13 @@ export const DocBridgeConfigV1Schema = z
     index: IndexConfigSchema.optional(),
     routing: RoutingConfigSchema.optional(),
     gates: GatesConfigSchema.optional(),
+    reconciliation: ReconciliationConfigSchema.optional(),
+    audit: z.object({ documentation: DocumentationAuditConfigSchema.optional() }).strict().optional(),
+    analysis: AnalysisConfigSchema.optional(),
+    rules: RulesConfigSchema.optional(),
+    workflow: WorkflowConfigSchema.optional(),
+    safety: RepositorySafetyConfigSchema.optional(),
+    report: ReportConfigSchema.optional(),
     surfaces: SurfacesConfigSchema.optional(),
     intelligence: IntelligenceConfigSchema.optional(),
     federation: FederationConfigSchema.optional(),
@@ -385,3 +544,12 @@ export type AgentCorpusConfig = z.infer<typeof AgentCorpusConfigSchema>
 export type HumanCorpusConfig = z.infer<typeof HumanCorpusConfigSchema>
 export type DocumentationStandardV1Config = z.infer<typeof DocumentationStandardV1ConfigSchema>
 export type DocumentationStandardRuleId = z.infer<typeof DocumentationStandardRuleIdSchema>
+export type ReconciliationConfig = z.infer<typeof ReconciliationConfigSchema>
+export type DocumentationAuditConfig = z.infer<typeof DocumentationAuditConfigSchema>
+export type AnalysisConfig = z.infer<typeof AnalysisConfigSchema>
+export type RuleId = z.infer<typeof RuleIdSchema>
+export type RuleSeverity = z.infer<typeof RuleSeveritySchema>
+export type RulesConfig = z.infer<typeof RulesConfigSchema>
+export type WorkflowConfig = z.infer<typeof WorkflowConfigSchema>
+export type RepositorySafetyConfig = z.infer<typeof RepositorySafetyConfigSchema>
+export type ReportConfig = z.infer<typeof ReportConfigSchema>

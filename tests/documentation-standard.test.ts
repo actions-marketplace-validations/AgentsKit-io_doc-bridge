@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, relative } from 'node:path'
 
@@ -211,6 +211,35 @@ describe('Documentation Standard v1', () => {
     expect(result).toMatchObject({ status: 'fail' })
   })
 
+  it('accepts declared managed products without a public repository', () => {
+    const { root, config } = fixture()
+    const manifest = JSON.parse(readFileSync(join(root, 'ecosystem.json'), 'utf8')) as {
+      products: Array<{ id: string; repo: string | null }>
+      properties: Array<{ id: string; repo: string | null }>
+    }
+    const claims = JSON.parse(readFileSync(join(root, 'ecosystem-claims.json'), 'utf8')) as {
+      products: Array<{ productId: string; source: Record<string, string> }>
+    }
+    const akos = manifest.products.find((product) => product.id === 'akos')
+    const legacyAkos = manifest.properties.find((product) => product.id === 'akos')
+    const akosClaims = claims.products.find((product) => product.productId === 'akos')
+    if (!akos || !legacyAkos || !akosClaims) throw new Error('Invalid test fixture')
+
+    akos.repo = null
+    legacyAkos.repo = null
+    akosClaims.source = {
+      type: 'declaration',
+      summary: 'Public commercial references only; no public repository is declared.',
+    }
+    writeFileSync(join(root, 'ecosystem.json'), JSON.stringify(manifest))
+    writeFileSync(join(root, 'ecosystem-claims.json'), JSON.stringify(claims))
+
+    const result = runDocumentationStandardV1(root, config).results.find(
+      (candidate) => candidate.id === 'cross-links',
+    )
+    expect(result).toMatchObject({ status: 'pass' })
+  })
+
   it('rejects whitespace-only canonical contract strings', () => {
     const { root, config } = fixture()
     const manifest = JSON.parse(readFileSync(join(root, 'ecosystem.json'), 'utf8')) as {
@@ -345,14 +374,20 @@ describe('Documentation Standard v1', () => {
     const llmsPath = join(root, config.index?.llmsTxt?.outFile ?? 'llms.txt')
     const originalLlms = existsSync(llmsPath) ? readFileSync(llmsPath, 'utf8') : undefined
     const generated = buildDocBridgeIndex({ root, config, write: false }).index
-    writeFileSync(llmsPath, renderLlmsTxt(config, generated.knowledge, generated.project?.name ?? 'project'))
+    const temporaryLlmsPath = `${llmsPath}.${process.pid}.tmp`
+    writeFileSync(temporaryLlmsPath, renderLlmsTxt(config, generated.knowledge, generated.project?.name ?? 'project'))
+    renameSync(temporaryLlmsPath, llmsPath)
     try {
       const report = runDocumentationStandardV1(root, config)
       expect(report.ok).toBe(true)
       expect(report.recommendedOk).toBe(true)
     } finally {
       if (originalLlms === undefined) unlinkSync(llmsPath)
-      else writeFileSync(llmsPath, originalLlms)
+      else {
+        const temporaryLlmsPath = `${llmsPath}.${process.pid}.tmp`
+        writeFileSync(temporaryLlmsPath, originalLlms)
+        renameSync(temporaryLlmsPath, llmsPath)
+      }
     }
   })
 })

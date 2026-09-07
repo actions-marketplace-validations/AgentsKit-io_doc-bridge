@@ -18,6 +18,8 @@ concurrency:
 env:
   RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
+permissions: {}
+
 jobs:
   verify:
     if: ${{ !contains(inputs.tag || github.ref_name, '-') }}
@@ -25,7 +27,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -33,7 +35,7 @@ jobs:
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
           version: 10.33.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
@@ -45,7 +47,7 @@ jobs:
           git fetch origin master --tags
           test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$(git rev-parse HEAD)"
           git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/master
-      - run: npx --yes pnpm@11.4.0 audit --audit-level low
+      - run: pnpm audit --audit-level low
       - run: pnpm typecheck
       - run: pnpm check:ecosystem-upstream
       - run: pnpm check:marketplace
@@ -74,7 +76,7 @@ jobs:
       contents: write
       id-token: write
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -82,18 +84,16 @@ jobs:
       - uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271
         with:
           version: 10.33.0
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           package-manager-cache: false
-          registry-url: https://registry.npmjs.org
-      - run: npm install --global npm@11
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: mkdir -p artifacts && npm pack --pack-destination artifacts
       - name: Publish npm package with provenance
         env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
         run: |
           name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
@@ -104,7 +104,6 @@ jobs:
           if npm view "$name@$version" version 2>/dev/null | grep -Fx "$version"; then
             echo "$name@$version already published; verified and skipped"
           else
-            if [ -n "${NPM_TOKEN:-}" ]; then export NODE_AUTH_TOKEN="$NPM_TOKEN"; fi
             npm publish "$artifact" --access public --provenance
           fi
       - name: Verify package and prepare GitHub release draft

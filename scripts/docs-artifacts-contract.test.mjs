@@ -58,10 +58,17 @@ test('every public document and local deterministic citation resolves in the exp
   }
   assert.ok(!existsSync(resolve(publicRoot, 'raw', 'DOGFOOD-ROUND2.md')))
   const origin = 'https://doc-bridge.agentskit.io'
+  const originUrl = new URL(origin)
   for (const entry of knowledge.entries) {
     for (const citation of entry.answer.citations) {
-      if (!citation.href.startsWith(origin)) continue
-      const relative = citation.href.slice(origin.length).replace(/^\//u, '')
+      let citationUrl
+      try {
+        citationUrl = new URL(citation.href)
+      } catch {
+        continue
+      }
+      if (citationUrl.origin !== originUrl.origin) continue
+      const relative = citationUrl.pathname.replace(/^\//u, '')
       const target = relative === 'docs/'
         ? resolve(root, 'apps/docs/out/docs/index.html')
         : relative.startsWith('docs/')
@@ -72,12 +79,21 @@ test('every public document and local deterministic citation resolves in the exp
   }
 })
 
+test('all deterministic entry and citation ids remain portable for scoped packages', () => {
+  const portableId = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
+  for (const entry of knowledge.entries) {
+    assert.match(entry.id, portableId)
+    for (const citation of entry.answer.citations) assert.match(citation.id, portableId)
+  }
+})
+
 test('sitemap publishes only the public documentation surface', () => {
   assert.doesNotMatch(sitemap, /DOGFOOD|agent-corpus|\/landing\//u)
 })
 
 test('machine entry points cross-reference the agent-first route', () => {
-  assert.ok(llms.includes('https://doc-bridge.agentskit.io/for-agents/'))
-  assert.ok(llms.includes('https://doc-bridge.agentskit.io/llms-full.txt'))
-  assert.ok(llms.includes('https://doc-bridge.agentskit.io/deterministic/knowledge.json'))
+  const hasExactUrl = (text, url) => text.split('\n').some(line => line.split('(')[1]?.split(')')[0] === url)
+  assert.ok(hasExactUrl(llms, 'https://doc-bridge.agentskit.io/for-agents/'))
+  assert.ok(hasExactUrl(llms, 'https://doc-bridge.agentskit.io/llms-full.txt'))
+  assert.ok(hasExactUrl(llms, 'https://doc-bridge.agentskit.io/deterministic/knowledge.json'))
 })
